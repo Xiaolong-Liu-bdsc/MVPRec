@@ -124,10 +124,6 @@ class our_model(nn.Module):
 
     def fuse_views(self):
         user_embed_sharer, item_embed_sharer, user_embed_participant, item_embed_participant, user_embed_social = self.get_embedding()
-        # temp_emb = torch.stack([item_embed_sharer, item_embed_participant],dim=0)
-        # temp = (temp_emb * self.item_transform).sum(-1)
-        # weight = torch.softmax(temp,dim=0)
-        # ea_embeddings = (weight.unsqueeze(-1) * temp_emb).sum(0)
 
         temp_emb = torch.stack([user_embed_sharer, user_embed_social],dim=0)
         temp = (temp_emb * self.init_transform).sum(-1)
@@ -138,11 +134,6 @@ class our_model(nn.Module):
         temp = (temp_emb * self.part_transform).sum(-1)
         weight = torch.softmax(temp,dim=0)
         ua_embeddings_participant = (weight.unsqueeze(-1) * temp_emb).sum(0)       
-
-        # u_concat_share = torch.concat([user_embed_sharer, user_embed_social], dim = 1)
-        # ua_embeddings_sharer = torch.matmul(u_concat_share, self.linear_sharer)
-        # u_concat_participant = torch.concat([user_embed_participant, user_embed_social], dim = 1)
-        # ua_embeddings_participant = torch.matmul(u_concat_participant,self.linear_part)
 
         return item_embed_sharer,item_embed_participant , ua_embeddings_sharer, ua_embeddings_participant
 
@@ -156,13 +147,12 @@ class our_model(nn.Module):
         
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         consistent_loss = (1- cos(item_embed_sharer, item_embed_participant)).mean()
-        # consistent_loss = 0
+
         temp_emb = torch.stack([item_embed_sharer, item_embed_participant],dim=0)
         temp = (temp_emb * self.item_transform).sum(-1)
         weight = torch.softmax(temp,dim=0)
         ea_embeddings = (weight.unsqueeze(-1) * temp_emb).sum(0)
-        # item_concat = torch.concat([item_embed_sharer, item_embed_participant], dim = 1)
-        # ea_embeddings = torch.matmul(item_concat, self.linear_item)
+
         
         sharer_embeddings = ua_embeddings_sharer[sharer]
         item_embeddings = ea_embeddings[item]
@@ -199,11 +189,6 @@ class our_model(nn.Module):
             prtc_scores = LogSoftmax(prtc_scores)
             score.append(prtc_scores)
         prtc_scores = torch.stack(score).mean(0)
-        # query_mul = torch.concat(torch.split(query, self.n_heads, dim=2), dim =-1)
-        # key_mul = torch.concat(torch.split(key, self.n_heads, dim=2),dim=-1)
-        # prtc_scores = (query_mul * key_mul).sum(-1)
-        # prtc_scores += self.friends_mask[sharer.cpu()].to(device)
-        # prtc_scores = LogSoftmax(prtc_scores)
 
         res1 = self.friends[sharer.cpu()] == participant.cpu().unsqueeze(-1)
 
