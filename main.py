@@ -96,71 +96,6 @@ def eval(model, dataset, K, social_K):
         final_social_result[k]['recall'] = sum(social_metric_result[k][0])/test_user_num
         final_social_result[k]['ndcg'] = sum(social_metric_result[k][1])/test_user_num
     return final_social_result
-# def eval(model, dataset, K, social_K):
-
-#     test_loader = dataset.test_loader
-#     max_k = max(K)
-#     max_social_k = max(social_K)
-#     metric_result,social_metric_result  = {},{}
-#     item_embed_sharer,item_embed_participant, ua_embeddings_sharer, ua_embeddings_participant = model.fuse_views()
-#     item_concat = torch.concat([item_embed_sharer, item_embed_participant], dim = 1)
-#     ea_embeddings = torch.matmul(item_concat, model.linear_item)
-#     for k in K:
-#         metric_result[k] = [[],[]]  #0:Recall, 1:ndcg
-#     for k in social_K:
-#         social_metric_result[k] = [[],[]]
-#     for batch_id, [user, item, participant] in tqdm(enumerate(test_loader)):
-#         bprloss, prtc_loss, prtc_scores, consistent_loss  = model(user, item, participant)
-#         prediction = torch.topk(prtc_scores,max_social_k)[1]
-#         social_rating_K = torch.gather(model.friends[user], 1, prediction)
-#         sharer_embeddings = ua_embeddings_sharer[user]
-
-#         # bprloss, prtc_loss, prtc_scores = model(user, item, participant)
-        
-#         prediction = torch.mm(sharer_embeddings, torch.t(ea_embeddings))
-#         # prediction = torch.matmul(query,torch.transpose(ua_embeddings_participant,0,1))
-#         rating_K = torch.topk(prediction,max_k)[1]
-
-#         for k in K:
-#             truth = item.unsqueeze(-1)
-#             result = truth[:,:k] == rating_K[:,:k]
-
-#             recall = t.sum(result).item()
-
-#             dcg = t.sum(result/(t.log2(t.arange(2,k+2))),1)
-            
-#             ndcg = t.sum(dcg).item()
-
-#             metric_result[k][0].append(recall)
-
-#             metric_result[k][1].append(ndcg)
-            
-#         for k in social_K:
-#             #social
-#             truth = participant.unsqueeze(-1)
-#             result = truth[:,:k] == social_rating_K[:,:k]
-
-#             recall = t.sum(result).item()
-
-#             dcg = t.sum(result/(t.log2(t.arange(2,k+2))),1)
-            
-#             ndcg = t.sum(dcg).item()
-
-#             social_metric_result[k][0].append(recall)
-            
-#             social_metric_result[k][1].append(ndcg)
-#     final_result,final_social_result = {},{}
-#     test_user_num = len(dataset.U_I_U_test)
-    
-#     for k in K:
-#         final_result[k] = {}
-#         final_result[k]['recall'] = sum(metric_result[k][0])/test_user_num
-#         final_result[k]['ndcg'] = sum(metric_result[k][1])/test_user_num
-#     for k in social_K:
-#         final_social_result[k] = {}
-#         final_social_result[k]['recall'] = sum(social_metric_result[k][0])/test_user_num
-#         final_social_result[k]['ndcg'] = sum(social_metric_result[k][1])/test_user_num
-#     return [final_result,final_social_result]
 
 def train(model):
     stop_count = 0
@@ -173,10 +108,7 @@ def train(model):
             
             # bprloss, prtc_loss, prtc_scores = model(user, item, participant)
             bprloss, prtc_loss, prtc_scores, consistent_loss = model(user, item, participant)
-            # pdb.set_trace()
-
-            # loss = prtc_loss
-            loss = 1.0 * prtc_loss + args.loss_reg * consistent_loss
+            loss = prtc_loss + args.loss_reg * consistent_loss
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -185,7 +117,7 @@ def train(model):
 
         for batch_id, [user, item, participant] in enumerate(dataset.val_loader):
             bprloss, prtc_loss, prtc_scores, consistent_loss  = model(user, item, participant)
-            loss = 1.0 * prtc_loss + args.loss_reg * consistent_loss
+            loss = prtc_loss + args.loss_reg * consistent_loss
             loss = loss.detach()
             val_loss += loss
         print('val_loss: ', val_loss/val_length)
@@ -224,5 +156,3 @@ if __name__ =='__main__':
     opt = t.optim.Adam(model.parameters(), lr = args.lr, weight_decay=args.weight_decay)
     result = train(model)
     print(result)
-    # for i in result:
-    #     print(i)
